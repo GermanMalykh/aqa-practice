@@ -18,11 +18,6 @@ public class TestBase {
         Configuration.baseUrl = "https://demoqa.com";
         Configuration.browser = "chrome";
         Configuration.pageLoadStrategy = "eager";
-        Allure.label("Browser", Configuration.browser);
-        Allure.label("Browser.Version", System.getProperty("browserVersion", "unknown"));
-        Allure.label("OS", System.getProperty("os.name"));
-        Allure.label("Java.Version", System.getProperty("java.version"));
-
     }
 
     @BeforeEach
