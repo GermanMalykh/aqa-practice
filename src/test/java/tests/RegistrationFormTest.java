@@ -20,7 +20,7 @@ public class RegistrationFormTest extends TestBase {
     @Test
     @DisplayName("Заполнение формы регистрации с валидацией данных")
     @Description("E2E тест заполнения формы регистрации с проверкой всех полей и валидацией отправленных данных")
-    @Owner("QA Team")
+    @Owner("german malykh")
     @Tag("web")
     void fillingPracticeForm() {
         page.open()
