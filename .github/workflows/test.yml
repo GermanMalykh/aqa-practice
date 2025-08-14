@@ -208,6 +208,11 @@ jobs:
         run: |
           echo "=== Generating Allure Report ==="
           
+          # Принудительно очищаем старые результаты
+          echo "Cleaning old results..."
+          rm -rf build/allure-results/* || echo "No old results to clean"
+          rm -rf build/reports/allure-report/* || echo "No old reports to clean"
+          
           # Создаем папку для истории если её нет
           mkdir -p build/allure-results/history
           
@@ -224,15 +229,15 @@ jobs:
           ls -la build/reports/allure-report/ || echo "No Allure report"
           
           # Проверяем содержимое отчета
-          if [ -d "build/reports/allure-report/allureReport" ]; then
+          if [ -d "build/reports/allure-report" ]; then
             echo "=== Report Contents ==="
-            ls -la build/reports/allure-report/allureReport/
+            ls -la build/reports/allure-report/
             echo "=== Test Suites ==="
-            if [ -f "build/reports/allure-report/allureReport/data/suites.json" ]; then
-              cat build/reports/allure-report/allureReport/data/suites.json | jq '.' || echo "Could not parse suites.json"
+            if [ -f "build/reports/allure-report/data/suites.json" ]; then
+              cat build/reports/allure-report/data/suites.json | jq '.' || echo "Could not parse suites.json"
             fi
             echo "=== History ==="
-            ls -la build/reports/allure-report/allureReport/history/ || echo "No history found"
+            ls -la build/reports/allure-report/history/ || echo "No history found"
           fi
       
       # Скачиваем историю страниц
@@ -256,6 +261,10 @@ jobs:
         if: always()
         run: |
           echo "=== Copying history to reports ==="
+          
+          # Принудительно очищаем старые результаты
+          echo "Force cleaning old results..."
+          rm -rf build/allure-results/* || echo "No old results to clean"
           
           # Проверяем существование папки с отчетами
           if [ ! -d "build/reports/allure-report" ]; then
