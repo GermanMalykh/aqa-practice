@@ -113,7 +113,7 @@ jobs:
           path: allure-report
       
       # Загружаем артефакт для GitHub Pages
-      - name: Deploy to GitHub Pages
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './allure-report'
