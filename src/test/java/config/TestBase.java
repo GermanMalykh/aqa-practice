@@ -34,6 +34,9 @@ public class TestBase {
             // Устанавливаем remote URL
             Configuration.remote = System.getProperty("selenide.remote", "http://localhost:4444/wd/hub");
             
+            // Генерируем уникальный профиль для каждого запуска
+            String uniqueProfileDir = "/tmp/chrome-profile-" + System.currentTimeMillis() + "-" + Thread.currentThread().getId();
+            
             // Дополнительные настройки для предотвращения конфликта профилей
             if (Configuration.browserCapabilities.getCapability("goog:chromeOptions") == null) {
                 Configuration.browserCapabilities.setCapability("goog:chromeOptions", Map.of(
@@ -62,7 +65,20 @@ public class TestBase {
                         "--no-first-run",
                         "--safebrowsing-disable-auto-update",
                         "--disable-blink-features=AutomationControlled",
-                        "--user-data-dir=/tmp/chrome-profile-" + System.currentTimeMillis()
+                        "--user-data-dir=" + uniqueProfileDir,
+                        "--remote-debugging-port=0",
+                        "--disable-background-networking",
+                        "--disable-default-apps",
+                        "--disable-extensions",
+                        "--disable-sync",
+                        "--disable-translate",
+                        "--hide-scrollbars",
+                        "--mute-audio",
+                        "--no-first-run",
+                        "--safebrowsing-disable-auto-update",
+                        "--ignore-certificate-errors",
+                        "--ignore-ssl-errors",
+                        "--ignore-certificate-errors-spki-list"
                     ),
                     "prefs", Map.of(
                         "profile.default_content_setting_values.notifications", 2,
@@ -70,12 +86,16 @@ public class TestBase {
                         "profile.default_content_setting_values.geolocation", 2,
                         "profile.default_content_setting_values.automatic_downloads", 1,
                         "profile.password_manager_enabled", false,
-                        "profile.default_content_setting_values.popups", 2
+                        "profile.default_content_setting_values.popups", 2,
+                        "profile.default_content_settings.popups", 0,
+                        "profile.managed_default_content_settings.images", 2,
+                        "profile.default_content_setting_values.images", 2
                     )
                 ));
             }
             
             System.out.println("CI environment detected. Using remote Selenoid at: " + Configuration.remote);
+            System.out.println("Using unique Chrome profile: " + uniqueProfileDir);
         }
     }
 

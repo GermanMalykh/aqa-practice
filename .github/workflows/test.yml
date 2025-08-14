@@ -74,54 +74,16 @@ jobs:
           # Скачиваем и запускаем Selenoid
           curl -s https://aerokube.com/cm/bash | bash
           
-          # Создаем конфигурацию Selenoid с уникальными профилями
-          cat > selenoid.yml << EOF
-          version: "1.0"
-          sessions:
-            max: 2
-            idle: 60s
-          browsers:
-            chrome:
-              image: selenoid/chrome:latest
-              port: 4444
-              path: /
-              tmpfs:
-                - "/tmp:size=512m"
-                - "/var/tmp:size=512m"
-              volumes:
-                - "/dev/shm:/dev/shm"
-              env:
-                - TZ=UTC
-              args:
-                - "--no-sandbox"
-                - "--disable-dev-shm-usage"
-                - "--disable-gpu"
-                - "--disable-web-security"
-                - "--disable-features=VizDisplayCompositor"
-                - "--disable-extensions"
-                - "--disable-plugins"
-                - "--disable-images"
-                - "--disable-javascript"
-                - "--disable-background-timer-throttling"
-                - "--disable-backgrounding-occluded-windows"
-                - "--disable-renderer-backgrounding"
-                - "--disable-features=TranslateUI"
-                - "--disable-ipc-flooding-protection"
-                - "--disable-hang-monitor"
-                - "--disable-prompt-on-repost"
-                - "--disable-client-side-phishing-detection"
-                - "--disable-component-extensions-with-background-pages"
-                - "--disable-default-apps"
-                - "--disable-sync"
-                - "--metrics-recording-only"
-                - "--no-first-run"
-                - "--safebrowsing-disable-auto-update"
-                - "--disable-blink-features=AutomationControlled"
-                - "--user-data-dir=/tmp/chrome-profile-\${RANDOM}"
-          EOF
+          # Запускаем Selenoid с поддерживаемыми флагами
+          ./cm selenoid start \
+            --browsers "chrome" \
+            --last-versions 1 \
+            --port 4444 \
+            --tmpfs 512 \
+            --shm-size 512 \
+            --args "--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-web-security --disable-features=VizDisplayCompositor --disable-extensions --disable-plugins --disable-images --disable-javascript --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --disable-features=TranslateUI --disable-ipc-flooding-protection --disable-hang-monitor --disable-prompt-on-repost --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-default-apps --disable-sync --metrics-recording-only --no-first-run --safebrowsing-disable-auto-update --disable-blink-features=AutomationControlled --user-data-dir=/tmp/chrome-profile-\${RANDOM}"
           
-          # Запускаем Selenoid с конфигурацией
-          ./cm selenoid start --config selenoid.yml
+          echo "Selenoid started with PID: $(pgrep selenoid || echo 'Not found')"
           
           # Ждем запуска и проверяем готовность
           echo "Waiting for Selenoid to start..."
@@ -142,6 +104,14 @@ jobs:
           # Проверяем доступность Chrome
           echo "=== Chrome Availability ==="
           curl -s -X POST http://localhost:4444/wd/hub/session -H "Content-Type: application/json" -d '{"desiredCapabilities":{"browserName":"chrome"}}' | head -c 200 || echo "Chrome not available yet"
+          
+          # Проверяем процессы Chrome
+          echo "=== Chrome Processes ==="
+          ps aux | grep chrome | grep -v grep || echo "No Chrome processes found"
+          
+          # Проверяем временные файлы
+          echo "=== Temp Files ==="
+          ls -la /tmp/chrome-profile-* 2>/dev/null || echo "No Chrome profile directories found"
       
       # запускаем тесты
       - name: Run tests
@@ -206,21 +176,48 @@ jobs:
         run: |
           echo "Cleaning up Selenoid and Chrome processes..."
           
+          # Показываем текущие процессы перед очисткой
+          echo "=== Processes before cleanup ==="
+          ps aux | grep -E "(selenoid|chrome|chromedriver)" | grep -v grep || echo "No target processes found"
+          
           # Останавливаем Selenoid
+          echo "Stopping Selenoid..."
           ./cm selenoid stop || true
           
           # Принудительно завершаем все процессы Chrome
+          echo "Killing Chrome processes..."
           pkill -f chrome || true
           pkill -f chromedriver || true
           pkill -f selenoid || true
           
+          # Дополнительная очистка процессов
+          echo "Additional process cleanup..."
+          pkill -f "google-chrome" || true
+          pkill -f "chromium" || true
+          
           # Очищаем временные файлы Chrome
+          echo "Cleaning Chrome temporary files..."
           rm -rf /tmp/chrome-profile-* || true
           rm -rf /tmp/.org.chromium.Chromium.* || true
           rm -rf /tmp/.com.google.Chrome.* || true
+          rm -rf /tmp/chrome_* || true
+          rm -rf /tmp/.com.google.Chrome* || true
           
           # Очищаем shared memory
+          echo "Cleaning shared memory..."
           rm -rf /dev/shm/* || true
+          
+          # Очищаем Docker контейнеры если они есть
+          echo "Cleaning Docker containers..."
+          docker ps -a | grep selenoid | awk '{print $1}' | xargs -r docker rm -f || true
+          docker ps -a | grep chrome | awk '{print $1}' | xargs -r docker rm -f || true
+          
+          # Проверяем результат очистки
+          echo "=== Processes after cleanup ==="
+          ps aux | grep -E "(selenoid|chrome|chromedriver)" | grep -v grep || echo "All target processes cleaned"
+          
+          echo "=== Temp files after cleanup ==="
+          ls -la /tmp/chrome* 2>/dev/null || echo "No Chrome temp files remaining"
           
           echo "Cleanup completed"
 
