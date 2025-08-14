@@ -153,19 +153,21 @@ jobs:
       # Обновляем ветку gh-pages
       - name: Update gh-pages branch
         run: |
-          # Настраиваем git
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          # Создаем отдельную папку для работы с git
+          mkdir -p gh-pages-work
+          cd gh-pages-work
           
-          # Скачиваем ветку gh-pages
-          git fetch origin gh-pages
-          git checkout gh-pages
+          # Клонируем репозиторий с токеном
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/GermanMalykh/aqa-practice.git .
+          
+          # Переключаемся на ветку gh-pages
+          git checkout gh-pages || git checkout -b gh-pages
           
           # Очищаем ветку (кроме .git)
           find . -not -path './.git*' -not -path '.' -delete
           
           # Копируем отчеты Allure в корень
-          cp -r allure-report/* . || echo "Failed to copy reports"
+          cp -r ../allure-report/* . || echo "Failed to copy reports"
           
           # Добавляем .nojekyll файл
           echo "# GitHub Pages" > .nojekyll
@@ -174,6 +176,10 @@ jobs:
           ls -la
           echo "=== Checking for index.html ==="
           ls -la index.html || echo "index.html not found!"
+          
+          # Настраиваем git
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
           
           # Коммитим изменения
           git add .
