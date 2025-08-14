@@ -182,10 +182,25 @@ jobs:
             -Dselenide.remoteReadTimeout=300000 \
             -Dselenide.remoteConnectionTimeout=300000 \
             --continue --no-daemon --info --stacktrace || true
+          
           echo "=== Test Results ==="
           find build/reports/tests -name "*.html" -exec echo "Report: {}" \;
           echo "=== Allure Results ==="
           ls -la build/allure-results/ || echo "No Allure results"
+          
+          echo "=== Test Classes Found ==="
+          find build/reports/tests -name "*.html" -exec grep -l "SelenoidConnectionTest\|RegistrationFormTest" {} \; || echo "No test classes found in reports"
+          
+          echo "=== Gradle Test Output ==="
+          echo "Checking if tests were executed..."
+          if [ -d "build/allure-results" ]; then
+            echo "Allure results directory exists"
+            ls -la build/allure-results/
+            echo "=== Test Results Summary ==="
+            find build/allure-results -name "*.json" -exec echo "Result file: {}" \;
+          else
+            echo "No Allure results directory found"
+          fi
       
       # генерируем отчет Allure
       - name: Generate Allure Report
@@ -288,8 +303,38 @@ jobs:
           name: allure-report
           path: allure-report
       
-      # Обновляем ветку gh-pages
-      - name: Update gh-pages branch
+      # Проверяем содержимое отчетов
+      - name: Check report contents
+        run: |
+          echo "=== Allure Report Contents ==="
+          ls -la allure-report/
+          echo "=== Checking for index.html ==="
+          ls -la allure-report/index.html || echo "index.html not found!"
+          
+          # Проверяем количество тестов
+          if [ -f "allure-report/widgets/summary.json" ]; then
+            echo "=== Test Summary ==="
+            cat allure-report/widgets/summary.json | jq '.' || echo "Could not parse summary.json"
+          fi
+      
+      # Загружаем артефакт для GitHub Pages
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './allure-report'
+      
+      # Настраиваем GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      # Публикуем отчет на GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      
+      # Дополнительно обновляем ветку gh-pages для истории
+      - name: Update gh-pages branch for history
+        if: always()
         run: |
           # Создаем отдельную папку для работы с git
           mkdir -p gh-pages-work
@@ -312,7 +357,7 @@ jobs:
           
           # Проверяем содержимое
           ls -la
-          echo "=== Checking for index.html ==="
+          echo "=== Final check for index.html ==="
           ls -la index.html || echo "index.html not found!"
           
           # Настраиваем git
@@ -321,25 +366,7 @@ jobs:
           
           # Коммитим изменения
           git add .
-          git commit -m "Update Allure reports $(date)" || echo "No changes to commit"
+          git commit -m "Update Allure reports $(date) - Added SelenoidConnectionTest" || echo "No changes to commit"
           
           # Пушим изменения
           git push origin gh-pages --force
-      
-      # настраиваем GitHub Pages
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-        if: always()
-      
-      # загружаем артефакт для GitHub Pages
-      - name: Deploy to GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        if: always()
-        with:
-          path: './allure-report'
-      
-      # публикуем отчет на GitHub Pages
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        if: always()
