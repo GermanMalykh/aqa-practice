@@ -39,6 +39,8 @@ dependencies {
 allure {
     report {
         version.set(allureVersion)
+        // Настройки для сохранения истории
+        reportDir.set(file("build/reports/allure-report"))
     }
     adapter {
         aspectjWeaver.set(true)

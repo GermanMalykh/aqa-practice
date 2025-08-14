@@ -206,9 +206,34 @@ jobs:
       - name: Generate Allure Report
         if: always()
         run: |
+          echo "=== Generating Allure Report ==="
+          
+          # Создаем папку для истории если её нет
+          mkdir -p build/allure-results/history
+          
+          # Если есть предыдущие результаты, копируем историю
+          if [ -d "pages_history/allure-report" ]; then
+            echo "Copying previous history..."
+            cp -r pages_history/allure-report/history build/allure-results/ || echo "No previous history to copy"
+          fi
+          
+          # Генерируем отчет с сохранением истории
           ./gradlew allureReport
+          
           echo "=== Allure Report Directory ==="
           ls -la build/reports/allure-report/ || echo "No Allure report"
+          
+          # Проверяем содержимое отчета
+          if [ -d "build/reports/allure-report/allureReport" ]; then
+            echo "=== Report Contents ==="
+            ls -la build/reports/allure-report/allureReport/
+            echo "=== Test Suites ==="
+            if [ -f "build/reports/allure-report/allureReport/data/suites.json" ]; then
+              cat build/reports/allure-report/allureReport/data/suites.json | jq '.' || echo "Could not parse suites.json"
+            fi
+            echo "=== History ==="
+            ls -la build/reports/allure-report/allureReport/history/ || echo "No history found"
+          fi
       
       # Скачиваем историю страниц
       - name: Download pages history
@@ -217,17 +242,45 @@ jobs:
           name: pages-history
           path: pages_history
       
+      # Скачиваем результаты предыдущего прогона для истории
+      - name: Download previous results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: previous-results
+      
       # Копируем историю в отчеты
       - name: Copy history to reports
         if: always()
         run: |
-          if [ -d "pages_history" ] && [ -d "build/reports/allure-report" ]; then
-            echo "Copying history to reports..."
-            cp -r pages_history/* build/reports/allure-report/ || echo "Failed to copy history"
-            ls -la build/reports/allure-report/
-          else
-            echo "No history to copy or no reports generated"
+          echo "=== Copying history to reports ==="
+          
+          # Копируем историю Allure из предыдущего прогона
+          if [ -d "previous-results" ] && [ -d "build/allure-results" ]; then
+            echo "Copying previous Allure results..."
+            cp -r previous-results/* build/allure-results/ || echo "Failed to copy previous results"
           fi
+          
+          # Копируем историю из GitHub Pages
+          if [ -d "pages_history" ] && [ -d "build/reports/allure-report/allureReport" ]; then
+            echo "Copying GitHub Pages history..."
+            
+            # Копируем историю Allure
+            if [ -d "pages_history/history" ]; then
+              echo "Copying Allure history from pages..."
+              cp -r pages_history/history build/reports/allure-report/allureReport/ || echo "Failed to copy history from pages"
+            fi
+            
+            # Копируем другие файлы истории
+            cp -r pages_history/* build/reports/allure-report/allureReport/ || echo "Failed to copy other history files"
+          fi
+          
+          echo "=== Final Report Contents ==="
+          ls -la build/reports/allure-report/allureReport/
+          echo "=== History Contents ==="
+          ls -la build/reports/allure-report/allureReport/history/ || echo "No history found"
+          echo "=== Allure Results Contents ==="
+          ls -la build/allure-results/ || echo "No allure results found"
       
       # Сохраняем отчеты как артефакт
       - name: Store Allure report
@@ -235,7 +288,16 @@ jobs:
         if: always()
         with:
           name: allure-report
-          path: build/reports/allure-report
+          path: build/reports/allure-report/allureReport
+          retention-days: 1
+      
+      # Сохраняем текущие результаты как историю для следующего прогона
+      - name: Store results for next run
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results
+          path: build/allure-results
           retention-days: 1
       
       # Очищаем Selenoid
@@ -318,8 +380,9 @@ jobs:
           fi
       
       # Загружаем артефакт для GitHub Pages
-      - name: Upload Pages Artifact
+      - name: Deploy to GitHub Pages
         uses: actions/upload-pages-artifact@v3
+        if: always()
         with:
           path: './allure-report'
       
