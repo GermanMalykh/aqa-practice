@@ -16,7 +16,7 @@ on:
     branches: [ main, master ]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -149,6 +149,38 @@ jobs:
         with:
           name: allure-report
           path: allure-report
+      
+      # Обновляем ветку gh-pages
+      - name: Update gh-pages branch
+        run: |
+          # Настраиваем git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Скачиваем ветку gh-pages
+          git fetch origin gh-pages
+          git checkout gh-pages
+          
+          # Очищаем ветку (кроме .git)
+          find . -not -path './.git*' -not -path '.' -delete
+          
+          # Копируем отчеты Allure в корень
+          cp -r allure-report/* . || echo "Failed to copy reports"
+          
+          # Добавляем .nojekyll файл
+          echo "# GitHub Pages" > .nojekyll
+          
+          # Проверяем содержимое
+          ls -la
+          echo "=== Checking for index.html ==="
+          ls -la index.html || echo "index.html not found!"
+          
+          # Коммитим изменения
+          git add .
+          git commit -m "Update Allure reports $(date)" || echo "No changes to commit"
+          
+          # Пушим изменения
+          git push origin gh-pages --force
       
       # настраиваем GitHub Pages
       - name: Setup Pages
