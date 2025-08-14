@@ -25,37 +25,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  download-history:
-    runs-on: ubuntu-latest
-    name: Download history
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: pages_history
-      
-      - name: Download existing pages
-        if: always()
-        run: |
-          if [ -d "pages_history" ]; then
-            echo "Found existing pages history"
-            ls -la pages_history/
-          else
-            echo "No existing pages history found"
-            mkdir -p pages_history
-          fi
-      
-      - name: Store pages history
-        uses: actions/upload-artifact@v4
-        with:
-          name: pages-history
-          path: pages_history
-          retention-days: 1
-
   test:
     runs-on: ubuntu-latest
-    needs: download-history
     environment: github-pages
     
     steps:
@@ -68,344 +39,48 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       
-      # Запускаем Selenoid напрямую
+      # Запускаем Selenoid
       - name: Start Selenoid
         run: |
-          # Скачиваем и запускаем Selenoid
-          echo "Downloading CM..."
           curl -s https://aerokube.com/cm/bash | bash
-          
-          echo "CM version:"
-          ./cm version
-          
-          echo "Available CM commands:"
-          ./cm help
-          
-          echo "Starting Selenoid..."
-          # Запускаем Selenoid с минимальными настройками
           ./cm selenoid start --browsers "chrome" --last-versions 1 --port 4444
-          
-          # Если первый запуск не удался, пробуем альтернативный способ
-          if ! curl -s http://localhost:4444/status > /dev/null 2>&1; then
-            echo "First attempt failed, trying alternative approach..."
-            ./cm selenoid start --browsers "chrome" --last-versions 1 --port 4444 --tmpfs 512 --shm-size 512
-          fi
-          
-          echo "Selenoid start command completed"
-          echo "Waiting 5 seconds for Selenoid to initialize..."
-          sleep 5
-          
-          echo "Current processes:"
-          ps aux | grep -E "(selenoid|chrome|docker)" | grep -v grep || echo "No target processes found"
-          
-          echo "Docker containers:"
-          docker ps -a || echo "Docker not available or no containers"
-          
-          echo "Port 4444 status:"
-          netstat -tlnp | grep 4444 || echo "Port 4444 not listening"
-          
-          echo "Testing Selenoid status immediately:"
-          curl -s http://localhost:4444/status || echo "Selenoid not responding yet"
-          
-          # Ждем запуска и проверяем готовность
-          echo "Waiting for Selenoid to start..."
-          for i in {1..30}; do
-            echo "Attempt $i/30: Checking Selenoid status..."
-            
-            # Проверяем процесс
-            if pgrep selenoid > /dev/null; then
-              echo "Selenoid process found: $(pgrep selenoid)"
-            fi
-            
-            # Проверяем порт
-            if netstat -tlnp | grep 4444 > /dev/null; then
-              echo "Port 4444 is listening"
-            fi
-            
-            # Проверяем HTTP статус
-            if curl -s http://localhost:4444/status > /dev/null 2>&1; then
-              echo "Selenoid HTTP endpoint is responding!"
-              break
-            fi
-            
-            echo "Selenoid not ready yet, waiting 2 seconds..."
-            sleep 2
-          done
-          
-          # Финальная проверка
-          echo "=== Final Selenoid Status ==="
-          echo "Processes:"
-          ps aux | grep -E "(selenoid|chrome|docker)" | grep -v grep || echo "No target processes found"
-          
-          echo "Ports:"
-          netstat -tlnp | grep 4444 || echo "Port 4444 not listening"
-          
-          echo "HTTP Status:"
-          curl -s http://localhost:4444/status || echo "HTTP endpoint not responding"
-          
-          echo "Testing Selenoid WebDriver endpoint:"
-          curl -s -X GET http://localhost:4444/wd/hub/status || echo "WebDriver endpoint not responding"
-          
-          echo "Docker Status:"
-          docker ps -a | grep selenoid || echo "No Selenoid containers found"
-          
-          echo "Docker logs (if available):"
-          docker logs $(docker ps -q --filter "name=selenoid" 2>/dev/null | head -1) 2>/dev/null || echo "No Docker logs available"
-          
-          echo "System logs:"
-          journalctl -u docker --since "1 minute ago" 2>/dev/null | tail -20 || echo "No system logs available"
+          sleep 10
       
       # запускаем тесты
       - name: Run tests
         env:
           CI: true
         run: |
-          echo "=== Pre-test diagnostics ==="
-          echo "Selenoid status:"
-          curl -s http://localhost:4444/status || echo "Selenoid not responding"
-          
-          echo "Available processes:"
-          ps aux | grep -E "(selenoid|chrome|docker)" | grep -v grep || echo "No target processes found"
-          
-          echo "Port 4444:"
-          netstat -tlnp | grep 4444 || echo "Port 4444 not listening"
-          
-          echo "Starting tests..."
           ./gradlew clean test \
             -Dselenide.remote=http://localhost:4444/wd/hub \
             -Dselenide.browser=chrome \
-            -Dselenide.pageLoadStrategy=eager \
-            -Dselenide.timeout=10000 \
-            -Dselenide.pollingInterval=200 \
-            -Dselenide.holdBrowserOpen=false \
-            -Dselenide.reopenBrowserOnFail=false \
-            -Dselenide.remoteReadTimeout=300000 \
-            -Dselenide.remoteConnectionTimeout=300000 \
-            --continue --no-daemon --info --stacktrace || true
-          
-          echo "=== Test Results ==="
-          find build/reports/tests -name "*.html" -exec echo "Report: {}" \;
-          echo "=== Allure Results ==="
-          ls -la build/allure-results/ || echo "No Allure results"
-          
-          echo "=== Test Classes Found ==="
-          find build/reports/tests -name "*.html" -exec grep -l "SelenoidConnectionTest\|RegistrationFormTest" {} \; || echo "No test classes found in reports"
-          
-          echo "=== Gradle Test Output ==="
-          echo "Checking if tests were executed..."
-          if [ -d "build/allure-results" ]; then
-            echo "Allure results directory exists"
-            ls -la build/allure-results/
-            echo "=== Test Results Summary ==="
-            find build/allure-results -name "*.json" -exec echo "Result file: {}" \;
-          else
-            echo "No Allure results directory found"
-            echo "Creating empty allure-results directory..."
-            mkdir -p build/allure-results
-          fi
-          
-          # Проверяем, что есть хотя бы один результат
-          if [ -z "$(find build/allure-results -name '*.json' 2>/dev/null)" ]; then
-            echo "WARNING: No test results found in build/allure-results/"
-            echo "Creating dummy result to prevent Allure failure..."
-            mkdir -p build/allure-results
-            echo '{"name":"dummy-test","status":"skipped","start":'$(date +%s)',"stop":'$(date +%s)'}' > build/allure-results/dummy-result.json
-          fi
+            --continue --no-daemon
       
       # генерируем отчет Allure
       - name: Generate Allure Report
-        if: always()
         run: |
-          echo "=== Generating Allure Report ==="
-          
-          # Проверяем результаты тестов
-          echo "=== Checking test results ==="
-          if [ -d "build/allure-results" ]; then
-            echo "Allure results directory exists:"
-            ls -la build/allure-results/
-            echo "Number of result files:"
-            find build/allure-results -name "*.json" | wc -l
-          else
-            echo "ERROR: build/allure-results directory not found!"
-            echo "Tests may not have run successfully."
-            echo "Creating empty results directory..."
-            mkdir -p build/allure-results
-            echo '{"name":"no-tests","status":"skipped","start":'$(date +%s)',"stop":'$(date +%s)'}' > build/allure-results/no-tests.json
-          fi
-          
-          # Создаем папку для истории если её нет
-          mkdir -p build/allure-results/history
-          
-          # Если есть предыдущие результаты, копируем историю
-          if [ -d "pages_history/allure-report" ]; then
-            echo "Copying previous history..."
-            cp -r pages_history/allure-report/history build/allure-results/ || echo "No previous history to copy"
-          fi
-          
-          # Очищаем только старые отчеты, НЕ результаты тестов
-          echo "Cleaning old reports (keeping test results)..."
-          rm -rf build/reports/allure-report/* || echo "No old reports to clean"
-          
-          # Генерируем отчет с сохранением истории
           ./gradlew allureReport
-          
-          echo "=== Allure Report Directory ==="
-          ls -la build/reports/allure-report/ || echo "No Allure report"
-          
-          # Проверяем содержимое отчета
-          if [ -d "build/reports/allure-report" ]; then
-            echo "=== Report Contents ==="
-            ls -la build/reports/allure-report/
-            echo "=== Test Suites ==="
-            if [ -f "build/reports/allure-report/data/suites.json" ]; then
-              cat build/reports/allure-report/data/suites.json | jq '.' || echo "Could not parse suites.json"
-            fi
-            echo "=== History ==="
-            ls -la build/reports/allure-report/history/ || echo "No history found"
-          else
-            echo "ERROR: Allure report was not generated!"
-            echo "This will cause the workflow to fail."
-            exit 1
-          fi
-      
-      # Скачиваем историю страниц
-      - name: Download pages history
-        uses: actions/download-artifact@v4
-        with:
-          name: pages-history
-          path: pages_history
-      
-      # Скачиваем результаты предыдущего прогона для истории
-      - name: Download previous results
-        uses: actions/download-artifact@v4
-        with:
-          name: allure-results
-          path: previous-results
-        continue-on-error: true
-        if: always()
-      
-      # Копируем историю в отчеты
-      - name: Copy history to reports
-        if: always()
-        run: |
-          echo "=== Copying history to reports ==="
-          
-          # Принудительно очищаем старые результаты
-          echo "Force cleaning old results..."
-          rm -rf build/allure-results/* || echo "No old results to clean"
-          
-          # Проверяем существование папки с отчетами
-          if [ ! -d "build/reports/allure-report" ]; then
-            echo "Creating allure-report directory..."
-            mkdir -p build/reports/allure-report
-          fi
-          
-          # Копируем историю Allure из предыдущего прогона
-          if [ -d "previous-results" ] && [ -d "build/allure-results" ]; then
-            echo "Copying previous Allure results..."
-            cp -r previous-results/* build/allure-results/ || echo "Failed to copy previous results"
-          fi
-          
-          # Копируем историю из GitHub Pages
-          if [ -d "pages_history" ] && [ -d "build/reports/allure-report" ]; then
-            echo "Copying GitHub Pages history..."
-            
-            # Копируем историю Allure
-            if [ -d "pages_history/history" ]; then
-              echo "Copying Allure history from pages..."
-              cp -r pages_history/history build/reports/allure-report/ || echo "Failed to copy history from pages"
-            fi
-            
-            # Копируем другие файлы истории
-            cp -r pages_history/* build/reports/allure-report/ || echo "Failed to copy other history files"
-          fi
-          
-          echo "=== Final Report Contents ==="
-          ls -la build/reports/allure-report/
-          echo "=== History Contents ==="
-          ls -la build/reports/allure-report/history/ || echo "No history found"
-          echo "=== Allure Results Contents ==="
-          ls -la build/allure-results/ || echo "No allure results found"
       
       # Сохраняем отчеты как артефакт
       - name: Store Allure report
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: allure-report
           path: build/reports/allure-report
-          retention-days: 1
-      
-      # Сохраняем текущие результаты как историю для следующего прогона
-      - name: Store results for next run
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: allure-results
-          path: build/allure-results
           retention-days: 1
       
       # Очищаем Selenoid
       - name: Cleanup
         if: always()
         run: |
-          echo "Cleaning up Selenoid and Chrome processes..."
-          
-          # Показываем текущие процессы перед очисткой
-          echo "=== Processes before cleanup ==="
-          ps aux | grep -E "(selenoid|chrome|chromedriver)" | grep -v grep || echo "No target processes found"
-          
-          # Останавливаем Selenoid
-          echo "Stopping Selenoid..."
           ./cm selenoid stop || true
-          
-          # Принудительно завершаем все процессы Chrome
-          echo "Killing Chrome processes..."
           pkill -f chrome || true
-          pkill -f chromedriver || true
-          pkill -f selenoid || true
-          
-          # Дополнительная очистка процессов
-          echo "Additional process cleanup..."
-          pkill -f "google-chrome" || true
-          pkill -f "chromium" || true
-          
-          # Очищаем временные файлы Chrome
-          echo "Cleaning Chrome temporary files..."
-          rm -rf /tmp/chrome-profile-* || true
-          rm -rf /tmp/.org.chromium.Chromium.* || true
-          rm -rf /tmp/.com.google.Chrome.* || true
-          rm -rf /tmp/chrome_* || true
-          rm -rf /tmp/.com.google.Chrome* || true
-          
-          # Очищаем shared memory
-          echo "Cleaning shared memory..."
-          rm -rf /dev/shm/* || true
-          
-          # Очищаем Docker контейнеры если они есть
-          echo "Cleaning Docker containers..."
-          docker ps -a | grep selenoid | awk '{print $1}' | xargs -r docker rm -f || true
-          docker ps -a | grep chrome | awk '{print $1}' | xargs -r docker rm -f || true
-          
-          # Проверяем результат очистки
-          echo "=== Processes after cleanup ==="
-          ps aux | grep -E "(selenoid|chrome|chromedriver)" | grep -v grep || echo "All target processes cleaned"
-          
-          echo "=== Temp files after cleanup ==="
-          ls -la /tmp/chrome* 2>/dev/null || echo "No Chrome temp files remaining"
-          
-          echo "Cleanup completed"
 
   publish-report:
     runs-on: ubuntu-latest
     needs: test
     name: Report publication
     environment: github-pages
-    
-    permissions:
-      contents: write
-      pages: write
-      id-token: write
     
     steps:
       # Скачиваем отчеты
@@ -415,24 +90,9 @@ jobs:
           name: allure-report
           path: allure-report
       
-      # Проверяем содержимое отчетов
-      - name: Check report contents
-        run: |
-          echo "=== Allure Report Contents ==="
-          ls -la allure-report/
-          echo "=== Checking for index.html ==="
-          ls -la allure-report/index.html || echo "index.html not found!"
-          
-          # Проверяем количество тестов
-          if [ -f "allure-report/widgets/summary.json" ]; then
-            echo "=== Test Summary ==="
-            cat allure-report/widgets/summary.json | jq '.' || echo "Could not parse summary.json"
-          fi
-      
       # Загружаем артефакт для GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/upload-pages-artifact@v3
-        if: always()
         with:
           path: './allure-report'
       
@@ -445,118 +105,4 @@ jobs:
       
       # Публикуем отчет на GitHub Pages
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
-      
-      # Ждем завершения деплоя и принудительно обновляем
-      - name: Wait for deployment and force refresh
-        if: always()
-        run: |
-          echo "Waiting for deployment to complete..."
-          sleep 10
-          
-          echo "Deployment completed"
-      
-      # Дополнительно обновляем ветку gh-pages для истории
-      - name: Update gh-pages branch for history
-        if: always()
-        run: |
-          echo "=== Starting gh-pages update ==="
-          
-          # Проверяем, что артефакт allure-report существует
-          if [ ! -d "../allure-report" ]; then
-            echo "WARNING: allure-report artifact not found!"
-            echo "Available files in parent directory:"
-            ls -la ../
-            echo "This may happen if Allure report generation failed."
-            echo "Creating minimal gh-pages content..."
-            
-            # Создаем отдельную папку для работы с git
-            mkdir -p gh-pages-work
-            cd gh-pages-work
-            
-            # Клонируем репозиторий с токеном
-            git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/GermanMalykh/aqa-practice.git .
-            
-            # Переключаемся на ветку gh-pages
-            git checkout gh-pages || git checkout -b gh-pages
-            
-            # Очищаем ветку (кроме .git)
-            find . -not -path './.git*' -not -path '.' -delete
-            
-            # Создаем минимальный контент
-            echo "<html><body><h1>Test Reports</h1><p>No reports available. Tests may have failed.</p></body></html>" > index.html
-            echo "# GitHub Pages" > .nojekyll
-            
-            # Настраиваем git и пушим
-            git config user.email "action@github.com"
-            git config user.name "GitHub Action"
-            git add .
-            git commit -m "Update gh-pages - No reports available $(date)" || echo "No changes to commit"
-            git push origin gh-pages
-            
-            echo "=== gh-pages updated with minimal content ==="
-            exit 0
-          fi
-          
-          echo "Allure report artifact found, proceeding with update..."
-          
-          # Создаем отдельную папку для работы с git
-          mkdir -p gh-pages-work
-          cd gh-pages-work
-          
-          echo "Cloning repository..."
-          # Клонируем репозиторий с токеном
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/GermanMalykh/aqa-practice.git .
-          
-          echo "Checking out gh-pages branch..."
-          # Переключаемся на ветку gh-pages
-          git checkout gh-pages || git checkout -b gh-pages
-          
-          echo "Cleaning branch..."
-          # Очищаем ветку (кроме .git)
-          find . -not -path './.git*' -not -path '.' -delete
-          
-          echo "Copying Allure reports..."
-          # Копируем отчеты Allure в корень
-          cp -r ../allure-report/* . || echo "Failed to copy reports"
-          
-          echo "Adding .nojekyll file..."
-          # Добавляем .nojekyll файл
-          echo "# GitHub Pages" > .nojekyll
-          
-          echo "Checking contents..."
-          # Проверяем содержимое
-          ls -la
-          echo "=== Final check for index.html ==="
-          ls -la index.html || echo "index.html not found!"
-          
-          echo "Configuring git..."
-          # Настраиваем git
-          git config user.email "action@github.com"
-          git config user.name "GitHub Action"
-          
-          echo "Adding files to git..."
-          # Добавляем все файлы
-          git add .
-          
-          echo "Checking git status..."
-          git status
-          
-          echo "Committing changes..."
-          # Коммитим изменения
-          git commit -m "Update Allure reports $(date) - Preserve history" || echo "No changes to commit"
-          
-          echo "Pushing to gh-pages..."
-          # Пушим изменения
-          git push origin gh-pages
-          
-          echo "=== gh-pages update completed ==="
-          
-          # Проверяем статус ветки gh-pages
-          echo "=== Checking gh-pages branch status ==="
-          git log --oneline -5
-          echo "=== Branch info ==="
-          git branch -a
-          echo "=== Remote info ==="
-          git remote -v
