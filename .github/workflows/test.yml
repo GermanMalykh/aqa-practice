@@ -73,21 +73,92 @@ jobs:
         run: |
           # Скачиваем и запускаем Selenoid
           curl -s https://aerokube.com/cm/bash | bash
-          ./cm selenoid start --browsers 'chrome' --last-versions 1 --args "-limit 2"
           
-          # Ждем запуска
-          sleep 10
+          # Создаем конфигурацию Selenoid с уникальными профилями
+          cat > selenoid.yml << EOF
+          version: "1.0"
+          sessions:
+            max: 2
+            idle: 60s
+          browsers:
+            chrome:
+              image: selenoid/chrome:latest
+              port: 4444
+              path: /
+              tmpfs:
+                - "/tmp:size=512m"
+                - "/var/tmp:size=512m"
+              volumes:
+                - "/dev/shm:/dev/shm"
+              env:
+                - TZ=UTC
+              args:
+                - "--no-sandbox"
+                - "--disable-dev-shm-usage"
+                - "--disable-gpu"
+                - "--disable-web-security"
+                - "--disable-features=VizDisplayCompositor"
+                - "--disable-extensions"
+                - "--disable-plugins"
+                - "--disable-images"
+                - "--disable-javascript"
+                - "--disable-background-timer-throttling"
+                - "--disable-backgrounding-occluded-windows"
+                - "--disable-renderer-backgrounding"
+                - "--disable-features=TranslateUI"
+                - "--disable-ipc-flooding-protection"
+                - "--disable-hang-monitor"
+                - "--disable-prompt-on-repost"
+                - "--disable-client-side-phishing-detection"
+                - "--disable-component-extensions-with-background-pages"
+                - "--disable-default-apps"
+                - "--disable-sync"
+                - "--metrics-recording-only"
+                - "--no-first-run"
+                - "--safebrowsing-disable-auto-update"
+                - "--disable-blink-features=AutomationControlled"
+                - "--user-data-dir=/tmp/chrome-profile-\${RANDOM}"
+          EOF
+          
+          # Запускаем Selenoid с конфигурацией
+          ./cm selenoid start --config selenoid.yml
+          
+          # Ждем запуска и проверяем готовность
+          echo "Waiting for Selenoid to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:4444/status > /dev/null 2>&1; then
+              echo "Selenoid is ready!"
+              break
+            fi
+            echo "Waiting for Selenoid... attempt $i/30"
+            sleep 2
+          done
           
           # Проверяем статус
+          echo "=== Selenoid Status ==="
           curl -s http://localhost:4444/status || echo "Selenoid not ready yet"
           ps aux | grep selenoid || echo "Selenoid process not found"
+          
+          # Проверяем доступность Chrome
+          echo "=== Chrome Availability ==="
+          curl -s -X POST http://localhost:4444/wd/hub/session -H "Content-Type: application/json" -d '{"desiredCapabilities":{"browserName":"chrome"}}' | head -c 200 || echo "Chrome not available yet"
       
       # запускаем тесты
       - name: Run tests
         env:
           CI: true
         run: |
-          ./gradlew clean test -Dselenide.remote=http://localhost:4444/wd/hub --continue --no-daemon --info --stacktrace || true
+          ./gradlew clean test \
+            -Dselenide.remote=http://localhost:4444/wd/hub \
+            -Dselenide.browser=chrome \
+            -Dselenide.pageLoadStrategy=eager \
+            -Dselenide.timeout=10000 \
+            -Dselenide.pollingInterval=200 \
+            -Dselenide.holdBrowserOpen=false \
+            -Dselenide.reopenBrowserOnFail=false \
+            -Dselenide.remoteReadTimeout=300000 \
+            -Dselenide.remoteConnectionTimeout=300000 \
+            --continue --no-daemon --info --stacktrace || true
           echo "=== Test Results ==="
           find build/reports/tests -name "*.html" -exec echo "Report: {}" \;
           echo "=== Allure Results ==="
@@ -133,8 +204,25 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
+          echo "Cleaning up Selenoid and Chrome processes..."
+          
+          # Останавливаем Selenoid
           ./cm selenoid stop || true
+          
+          # Принудительно завершаем все процессы Chrome
+          pkill -f chrome || true
+          pkill -f chromedriver || true
           pkill -f selenoid || true
+          
+          # Очищаем временные файлы Chrome
+          rm -rf /tmp/chrome-profile-* || true
+          rm -rf /tmp/.org.chromium.Chromium.* || true
+          rm -rf /tmp/.com.google.Chrome.* || true
+          
+          # Очищаем shared memory
+          rm -rf /dev/shm/* || true
+          
+          echo "Cleanup completed"
 
   publish-report:
     runs-on: ubuntu-latest
