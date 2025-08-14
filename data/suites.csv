@@ -1,0 +1,2 @@
+"Status","Start Time","Stop Time","Duration in ms","Parent Suite","Suite","Sub Suite","Test Class","Test Method","Name","Description"
+"broken","Thu Aug 14 09:33:04 UTC 2025","Thu Aug 14 09:33:13 UTC 2025","8598","","Форма регистрации","","tests.RegistrationFormTest","fillingPracticeForm","Заполнение формы регистрации с валидацией данных","E2E тест заполнения формы регистрации с проверкой всех полей и валидацией отправленных данных"
