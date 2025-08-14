@@ -2,11 +2,21 @@ name: Test
 
 on: 
   workflow_dispatch:
+    inputs:
+      test_type:
+        description: Choose test type
+        required: true
+        default: all
+        type: choice
+        options:
+          - smoke
+          - regression
+          - all
   push:
     branches: [ main, master ]
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -15,8 +25,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  download-history:
+    runs-on: ubuntu-latest
+    name: Download history
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages_history
+      
+      - name: Download existing pages
+        if: always()
+        run: |
+          if [ -d "pages_history" ]; then
+            echo "Found existing pages history"
+            ls -la pages_history/
+          else
+            echo "No existing pages history found"
+            mkdir -p pages_history
+          fi
+      
+      - name: Store pages history
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-history
+          path: pages_history
+          retention-days: 1
+
   test:
     runs-on: ubuntu-latest
+    needs: download-history
     environment: github-pages
     
     steps:
@@ -62,32 +101,54 @@ jobs:
           echo "=== Allure Report Directory ==="
           ls -la build/reports/allure-report/ || echo "No Allure report"
       
-      # Создаем ветку gh-pages и копируем отчеты
-      - name: Setup gh-pages branch
+      # Скачиваем историю страниц
+      - name: Download pages history
+        uses: actions/download-artifact@v4
+        with:
+          name: pages-history
+          path: pages_history
+      
+      # Копируем историю в отчеты
+      - name: Copy history to reports
         if: always()
         run: |
-          # Настраиваем git для создания ветки
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          # Создаем ветку gh-pages
-          git checkout -b gh-pages || git checkout gh-pages
-          
-          # Очищаем ветку
-          git rm -rf . || true
-          
-          # Копируем отчеты Allure
-          cp -r build/reports/allure-report/* . || echo "Failed to copy reports"
-          
-          # Добавляем .nojekyll файл
-          echo "# GitHub Pages" > .nojekyll
-          
-          # Коммитим изменения
-          git add .
-          git commit -m "Update Allure reports $(date)" || echo "No changes to commit"
-          
-          # Пушим ветку
-          git push origin gh-pages --force
+          if [ -d "pages_history" ] && [ -d "build/reports/allure-report" ]; then
+            echo "Copying history to reports..."
+            cp -r pages_history/* build/reports/allure-report/ || echo "Failed to copy history"
+            ls -la build/reports/allure-report/
+          else
+            echo "No history to copy or no reports generated"
+          fi
+      
+      # Сохраняем отчеты как артефакт
+      - name: Store Allure report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-report
+          path: build/reports/allure-report
+          retention-days: 1
+      
+      # Очищаем Selenoid
+      - name: Cleanup
+        if: always()
+        run: |
+          ./cm selenoid stop || true
+          pkill -f selenoid || true
+
+  publish-report:
+    runs-on: ubuntu-latest
+    needs: test
+    name: Report publication
+    environment: github-pages
+    
+    steps:
+      # Скачиваем отчеты
+      - name: Download Allure report
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report
       
       # настраиваем GitHub Pages
       - name: Setup Pages
@@ -99,17 +160,10 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         if: always()
         with:
-          path: './build/reports/allure-report'
+          path: './allure-report'
       
       # публикуем отчет на GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
         if: always()
-      
-      # Очищаем Selenoid
-      - name: Cleanup
-        if: always()
-        run: |
-          ./cm selenoid stop || true
-          pkill -f selenoid || true
