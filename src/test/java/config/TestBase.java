@@ -70,6 +70,7 @@ public class TestBase {
         if (isCiCd) {
             Attach.videoAs();
             System.out.println("Video attachment added (CI/CD environment)");
+            System.out.println("Video URL base: " + utils.Attach.CONFIG_REMOTE_URL_VIDEO);
         } else {
             System.out.println("Video attachment skipped (local environment)");
         }

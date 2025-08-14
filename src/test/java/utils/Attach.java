@@ -20,7 +20,7 @@ import static com.codeborne.selenide.WebDriverRunner.getWebDriver;
 
 public class Attach {
     private static final Logger logger = LoggerFactory.getLogger(Attach.class);
-    public static final String CONFIG_REMOTE_URL_VIDEO = "https://selenoid.autotests.cloud/video/";
+    public static final String CONFIG_REMOTE_URL_VIDEO = System.getProperty("selenide.video.url", "http://localhost:4444/video/");
 
     @Attachment(value = "{attachName}", type = "image/png")
     public static byte[] screenshotAs(String attachName) {
