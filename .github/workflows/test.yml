@@ -76,31 +76,36 @@ jobs:
           curl -s https://aerokube.com/cm/bash | bash
           
           echo "CM version:"
-          ./cm --version
+          ./cm version
           
           echo "Available CM commands:"
-          ./cm --help
+          ./cm help
           
           echo "Starting Selenoid..."
           # Запускаем Selenoid с минимальными настройками
           ./cm selenoid start --browsers "chrome" --last-versions 1 --port 4444
           
+          # Если первый запуск не удался, пробуем альтернативный способ
+          if ! curl -s http://localhost:4444/status > /dev/null 2>&1; then
+            echo "First attempt failed, trying alternative approach..."
+            ./cm selenoid start --browsers "chrome" --last-versions 1 --port 4444 --tmpfs 512 --shm-size 512
+          fi
+          
           echo "Selenoid start command completed"
+          echo "Waiting 5 seconds for Selenoid to initialize..."
+          sleep 5
+          
           echo "Current processes:"
           ps aux | grep -E "(selenoid|chrome|docker)" | grep -v grep || echo "No target processes found"
           
           echo "Docker containers:"
           docker ps -a || echo "Docker not available or no containers"
           
-          # Если Docker недоступен, пробуем альтернативный способ
-          if ! command -v docker &> /dev/null; then
-            echo "Docker not available, trying alternative approach..."
-            # Пробуем запустить Selenoid без Docker
-            ./cm selenoid start --browsers "chrome" --last-versions 1 --port 4444 --use-drivers
-          fi
-          
           echo "Port 4444 status:"
           netstat -tlnp | grep 4444 || echo "Port 4444 not listening"
+          
+          echo "Testing Selenoid status immediately:"
+          curl -s http://localhost:4444/status || echo "Selenoid not responding yet"
           
           # Ждем запуска и проверяем готовность
           echo "Waiting for Selenoid to start..."
@@ -143,6 +148,12 @@ jobs:
           
           echo "Docker Status:"
           docker ps -a | grep selenoid || echo "No Selenoid containers found"
+          
+          echo "Docker logs (if available):"
+          docker logs $(docker ps -q --filter "name=selenoid" 2>/dev/null | head -1) 2>/dev/null || echo "No Docker logs available"
+          
+          echo "System logs:"
+          journalctl -u docker --since "1 minute ago" 2>/dev/null | tail -20 || echo "No system logs available"
       
       # запускаем тесты
       - name: Run tests
