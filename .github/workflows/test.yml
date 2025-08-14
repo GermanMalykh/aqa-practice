@@ -374,6 +374,11 @@ jobs:
     name: Report publication
     environment: github-pages
     
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    
     steps:
       # Скачиваем отчеты
       - name: Download Allure report
@@ -428,37 +433,74 @@ jobs:
       - name: Update gh-pages branch for history
         if: always()
         run: |
+          echo "=== Starting gh-pages update ==="
+          
+          # Проверяем, что артефакт allure-report существует
+          if [ ! -d "../allure-report" ]; then
+            echo "ERROR: allure-report artifact not found!"
+            echo "Available files in parent directory:"
+            ls -la ../
+            exit 1
+          fi
+          
+          echo "Allure report artifact found, proceeding with update..."
+          
           # Создаем отдельную папку для работы с git
           mkdir -p gh-pages-work
           cd gh-pages-work
           
+          echo "Cloning repository..."
           # Клонируем репозиторий с токеном
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/GermanMalykh/aqa-practice.git .
           
+          echo "Checking out gh-pages branch..."
           # Переключаемся на ветку gh-pages
           git checkout gh-pages || git checkout -b gh-pages
           
+          echo "Cleaning branch..."
           # Очищаем ветку (кроме .git)
           find . -not -path './.git*' -not -path '.' -delete
           
+          echo "Copying Allure reports..."
           # Копируем отчеты Allure в корень
           cp -r ../allure-report/* . || echo "Failed to copy reports"
           
+          echo "Adding .nojekyll file..."
           # Добавляем .nojekyll файл
           echo "# GitHub Pages" > .nojekyll
           
+          echo "Checking contents..."
           # Проверяем содержимое
           ls -la
           echo "=== Final check for index.html ==="
           ls -la index.html || echo "index.html not found!"
           
+          echo "Configuring git..."
           # Настраиваем git
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           
-          # Коммитим изменения
+          echo "Adding files to git..."
+          # Добавляем все файлы
           git add .
+          
+          echo "Checking git status..."
+          git status
+          
+          echo "Committing changes..."
+          # Коммитим изменения
           git commit -m "Update Allure reports $(date) - Preserve history" || echo "No changes to commit"
           
+          echo "Pushing to gh-pages..."
           # Пушим изменения
           git push origin gh-pages
+          
+          echo "=== gh-pages update completed ==="
+          
+          # Проверяем статус ветки gh-pages
+          echo "=== Checking gh-pages branch status ==="
+          git log --oneline -5
+          echo "=== Branch info ==="
+          git branch -a
+          echo "=== Remote info ==="
+          git remote -v
