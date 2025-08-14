@@ -39,7 +39,6 @@ dependencies {
 allure {
     report {
         version.set(allureVersion)
-        // Настройки для сохранения истории
         reportDir.set(file("build/reports/allure-report"))
     }
     adapter {
@@ -52,11 +51,6 @@ allure {
     }
 }
 
-// Примечание: Allure плагин автоматически создает задачи:
-// - allureReport - генерация отчета
-// - allureServe - локальный сервер с отчетом
-// - allureResults - сбор результатов тестов
-
 tasks.withType(Test) {
     useJUnitPlatform()
     systemProperty "Gradle", gradle.gradleVersion
@@ -67,18 +61,5 @@ tasks.withType(Test) {
             events "started", "skipped", "failed", "standard_error", "standard_out"
             exceptionFormat "short"
         }
-    }
-}
-
-// Задача для очистки старых отчетов
-task cleanReports(type: Delete) {
-    delete fileTree(dir: 'build/allure-results', includes: ['**/*'])
-}
-
-// Задача для принудительного обновления отчетов
-task forceUpdateReports {
-    dependsOn cleanReports
-    doLast {
-        println "Reports cleaned and ready for update"
     }
 }
