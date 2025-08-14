@@ -7,7 +7,7 @@ import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.$$;
 
 /**
- * Элементы страницы формы регистрации
+ * Элементы страницы формы регистрации.
  * Отделяет элементы от логики Page Object
  */
 public class PageElements {
