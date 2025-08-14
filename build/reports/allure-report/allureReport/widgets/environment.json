@@ -1,1 +1,0 @@
-[{"values":["https://demoqa.com"],"name":"BaseUrl"},{"values":["chrome"],"name":"Browser.Config"},{"values":["8.10.1"],"name":"Gradle"},{"values":["false"],"name":"Headless"},{"values":["21.0.8"],"name":"Java"},{"values":["Linux 6.11.0-1018-azure"],"name":"OS"},{"values":["7.9.4"],"name":"Selenide"}]
