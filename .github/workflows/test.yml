@@ -72,52 +72,94 @@ jobs:
       - name: Start Selenoid
         run: |
           # Скачиваем и запускаем Selenoid
+          echo "Downloading CM..."
           curl -s https://aerokube.com/cm/bash | bash
           
-          # Запускаем Selenoid с поддерживаемыми флагами
-          ./cm selenoid start \
-            --browsers "chrome" \
-            --last-versions 1 \
-            --port 4444 \
-            --tmpfs 512 \
-            --shm-size 512 \
-            --args "--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-web-security --disable-features=VizDisplayCompositor --disable-extensions --disable-plugins --disable-images --disable-javascript --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --disable-features=TranslateUI --disable-ipc-flooding-protection --disable-hang-monitor --disable-prompt-on-repost --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-default-apps --disable-sync --metrics-recording-only --no-first-run --safebrowsing-disable-auto-update --disable-blink-features=AutomationControlled --user-data-dir=/tmp/chrome-profile-\${RANDOM}"
+          echo "CM version:"
+          ./cm --version
           
-          echo "Selenoid started with PID: $(pgrep selenoid || echo 'Not found')"
+          echo "Available CM commands:"
+          ./cm --help
+          
+          echo "Starting Selenoid..."
+          # Запускаем Selenoid с минимальными настройками
+          ./cm selenoid start --browsers "chrome" --last-versions 1 --port 4444
+          
+          echo "Selenoid start command completed"
+          echo "Current processes:"
+          ps aux | grep -E "(selenoid|chrome|docker)" | grep -v grep || echo "No target processes found"
+          
+          echo "Docker containers:"
+          docker ps -a || echo "Docker not available or no containers"
+          
+          # Если Docker недоступен, пробуем альтернативный способ
+          if ! command -v docker &> /dev/null; then
+            echo "Docker not available, trying alternative approach..."
+            # Пробуем запустить Selenoid без Docker
+            ./cm selenoid start --browsers "chrome" --last-versions 1 --port 4444 --use-drivers
+          fi
+          
+          echo "Port 4444 status:"
+          netstat -tlnp | grep 4444 || echo "Port 4444 not listening"
           
           # Ждем запуска и проверяем готовность
           echo "Waiting for Selenoid to start..."
           for i in {1..30}; do
+            echo "Attempt $i/30: Checking Selenoid status..."
+            
+            # Проверяем процесс
+            if pgrep selenoid > /dev/null; then
+              echo "Selenoid process found: $(pgrep selenoid)"
+            fi
+            
+            # Проверяем порт
+            if netstat -tlnp | grep 4444 > /dev/null; then
+              echo "Port 4444 is listening"
+            fi
+            
+            # Проверяем HTTP статус
             if curl -s http://localhost:4444/status > /dev/null 2>&1; then
-              echo "Selenoid is ready!"
+              echo "Selenoid HTTP endpoint is responding!"
               break
             fi
-            echo "Waiting for Selenoid... attempt $i/30"
+            
+            echo "Selenoid not ready yet, waiting 2 seconds..."
             sleep 2
           done
           
-          # Проверяем статус
-          echo "=== Selenoid Status ==="
-          curl -s http://localhost:4444/status || echo "Selenoid not ready yet"
-          ps aux | grep selenoid || echo "Selenoid process not found"
+          # Финальная проверка
+          echo "=== Final Selenoid Status ==="
+          echo "Processes:"
+          ps aux | grep -E "(selenoid|chrome|docker)" | grep -v grep || echo "No target processes found"
           
-          # Проверяем доступность Chrome
-          echo "=== Chrome Availability ==="
-          curl -s -X POST http://localhost:4444/wd/hub/session -H "Content-Type: application/json" -d '{"desiredCapabilities":{"browserName":"chrome"}}' | head -c 200 || echo "Chrome not available yet"
+          echo "Ports:"
+          netstat -tlnp | grep 4444 || echo "Port 4444 not listening"
           
-          # Проверяем процессы Chrome
-          echo "=== Chrome Processes ==="
-          ps aux | grep chrome | grep -v grep || echo "No Chrome processes found"
+          echo "HTTP Status:"
+          curl -s http://localhost:4444/status || echo "HTTP endpoint not responding"
           
-          # Проверяем временные файлы
-          echo "=== Temp Files ==="
-          ls -la /tmp/chrome-profile-* 2>/dev/null || echo "No Chrome profile directories found"
+          echo "Testing Selenoid WebDriver endpoint:"
+          curl -s -X GET http://localhost:4444/wd/hub/status || echo "WebDriver endpoint not responding"
+          
+          echo "Docker Status:"
+          docker ps -a | grep selenoid || echo "No Selenoid containers found"
       
       # запускаем тесты
       - name: Run tests
         env:
           CI: true
         run: |
+          echo "=== Pre-test diagnostics ==="
+          echo "Selenoid status:"
+          curl -s http://localhost:4444/status || echo "Selenoid not responding"
+          
+          echo "Available processes:"
+          ps aux | grep -E "(selenoid|chrome|docker)" | grep -v grep || echo "No target processes found"
+          
+          echo "Port 4444:"
+          netstat -tlnp | grep 4444 || echo "Port 4444 not listening"
+          
+          echo "Starting tests..."
           ./gradlew clean test \
             -Dselenide.remote=http://localhost:4444/wd/hub \
             -Dselenide.browser=chrome \

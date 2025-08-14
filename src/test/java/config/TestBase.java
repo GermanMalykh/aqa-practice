@@ -25,6 +25,8 @@ public class TestBase {
         Configuration.pageLoadStrategy = "eager";
         
         // Настройки для CI/CD окружения
+        // Локально: использует локальный Chrome
+        // В CI/CD: подключается к Selenoid на localhost:4444
         if (System.getenv("CI") != null) {
             // Загружаем конфигурацию из файла через системные свойства
             try {
