@@ -116,7 +116,7 @@ jobs:
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          name: pages-content
+          name: github-pages
           path: './allure-report'
       
       # Настраиваем GitHub Pages
