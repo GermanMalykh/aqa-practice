@@ -64,6 +64,15 @@ public class TestBase {
         Attach.pageHtml();
         Attach.screenshotAs("Last screenshot");
         Attach.browserConsoleLogs();
+        
+        // Простая проверка CI/CD для видео
+        boolean isCiCd = System.getenv("CI") != null || System.getProperty("selenide.remote") != null;
+        if (isCiCd) {
+            Attach.videoAs();
+            System.out.println("Video attachment added (CI/CD environment)");
+        } else {
+            System.out.println("Video attachment skipped (local environment)");
+        }
     }
 
     @AfterAll

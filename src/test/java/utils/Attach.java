@@ -109,6 +109,12 @@ public class Attach {
 
     @Attachment(value = "Video", type = "text/html", fileExtension = ".html")
     public static String videoAs() {
+        // Простая проверка: добавляем видео только при CI/CD запуске
+        if (System.getenv("CI") == null && System.getProperty("selenide.remote") == null) {
+            logger.info("Локальный запуск - видео не добавляется");
+            return "<html><body>Video skipped for local execution</body></html>";
+        }
+        
         try {
             URL url = videoUrl();
             if (url == null) {
