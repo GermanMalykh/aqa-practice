@@ -6,7 +6,7 @@ on:
     branches: [ main, master ]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -61,6 +61,33 @@ jobs:
           ./gradlew allureReport
           echo "=== Allure Report Directory ==="
           ls -la build/reports/allure-report/ || echo "No Allure report"
+      
+      # Создаем ветку gh-pages и копируем отчеты
+      - name: Setup gh-pages branch
+        if: always()
+        run: |
+          # Настраиваем git для создания ветки
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Создаем ветку gh-pages
+          git checkout -b gh-pages || git checkout gh-pages
+          
+          # Очищаем ветку
+          git rm -rf . || true
+          
+          # Копируем отчеты Allure
+          cp -r build/reports/allure-report/* . || echo "Failed to copy reports"
+          
+          # Добавляем .nojekyll файл
+          echo "# GitHub Pages" > .nojekyll
+          
+          # Коммитим изменения
+          git add .
+          git commit -m "Update Allure reports $(date)" || echo "No changes to commit"
+          
+          # Пушим ветку
+          git push origin gh-pages --force
       
       # настраиваем GitHub Pages
       - name: Setup Pages
