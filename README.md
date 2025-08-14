@@ -27,7 +27,7 @@
 ./gradlew allureReport
 ```
 
-### Очистка старых отчетов
+### Очистка результатов тестов
 ```bash
 ./gradlew cleanReports
 ```
@@ -35,6 +35,11 @@
 ### Принудительное обновление отчетов
 ```bash
 ./gradlew forceUpdateReports
+```
+
+### Просмотр отчета локально
+```bash
+./gradlew allureServe
 ```
 
 ## Решение проблем

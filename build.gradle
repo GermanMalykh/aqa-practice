@@ -41,7 +41,6 @@ allure {
         version.set(allureVersion)
         // Настройки для сохранения истории
         reportDir.set(file("build/reports/allure-report"))
-        resultsDir.set(file("build/allure-results"))
     }
     adapter {
         aspectjWeaver.set(true)
@@ -53,9 +52,16 @@ allure {
     }
 }
 
+// Примечание: Allure плагин автоматически создает задачи:
+// - allureReport - генерация отчета
+// - allureServe - локальный сервер с отчетом
+// - allureResults - сбор результатов тестов
+
 tasks.withType(Test) {
     useJUnitPlatform()
     systemProperty "Gradle", gradle.gradleVersion
+    systemProperty "allure.results.directory", "build/allure-results"
+    systemProperty "allure.report.directory", "build/reports/allure-report"
     testLogging {
         lifecycle {
             events "started", "skipped", "failed", "standard_error", "standard_out"
@@ -66,7 +72,6 @@ tasks.withType(Test) {
 
 // Задача для очистки старых отчетов
 task cleanReports(type: Delete) {
-    delete fileTree(dir: 'build/reports', includes: ['**/*'])
     delete fileTree(dir: 'build/allure-results', includes: ['**/*'])
 }
 
