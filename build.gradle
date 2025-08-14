@@ -41,6 +41,7 @@ allure {
         version.set(allureVersion)
         // Настройки для сохранения истории
         reportDir.set(file("build/reports/allure-report"))
+        resultsDir.set(file("build/allure-results"))
     }
     adapter {
         aspectjWeaver.set(true)
@@ -60,5 +61,19 @@ tasks.withType(Test) {
             events "started", "skipped", "failed", "standard_error", "standard_out"
             exceptionFormat "short"
         }
+    }
+}
+
+// Задача для очистки старых отчетов
+task cleanReports(type: Delete) {
+    delete fileTree(dir: 'build/reports', includes: ['**/*'])
+    delete fileTree(dir: 'build/allure-results', includes: ['**/*'])
+}
+
+// Задача для принудительного обновления отчетов
+task forceUpdateReports {
+    dependsOn cleanReports
+    doLast {
+        println "Reports cleaned and ready for update"
     }
 }

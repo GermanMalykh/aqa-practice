@@ -249,6 +249,7 @@ jobs:
           name: allure-results
           path: previous-results
         continue-on-error: true
+        if: always()
       
       # Копируем историю в отчеты
       - name: Copy history to reports
@@ -390,12 +391,57 @@ jobs:
       # Настраиваем GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        with:
+          static_site_generator: none
+          enablement: true
       
       # Публикуем отчет на GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
       
+      # Ждем завершения деплоя и принудительно обновляем
+      - name: Wait for deployment and force refresh
+        if: always()
+        run: |
+          echo "Waiting for deployment to complete..."
+          sleep 10
+          
+          echo "Deployment completed"
+      
+      # Копируем историю в отчеты
+      - name: Copy history to reports
+        if: always()
+        run: |
+          echo "=== Copying history to reports ==="
+          
+          # Копируем историю Allure из предыдущего прогона
+          if [ -d "previous-results" ] && [ -d "build/allure-results" ]; then
+            echo "Copying previous Allure results..."
+            cp -r previous-results/* build/allure-results/ || echo "Failed to copy previous results"
+          fi
+          
+          # Копируем историю из GitHub Pages
+          if [ -d "pages_history" ] && [ -d "build/reports/allure-report/allureReport" ]; then
+            echo "Copying GitHub Pages history..."
+            
+            # Копируем историю Allure
+            if [ -d "pages_history/history" ]; then
+              echo "Copying Allure history from pages..."
+              cp -r pages_history/history build/reports/allure-report/allureReport/ || echo "Failed to copy history from pages"
+            fi
+            
+            # Копируем другие файлы истории
+            cp -r pages_history/* build/reports/allure-report/allureReport/ || echo "Failed to copy other history files"
+          fi
+          
+          echo "=== Final Report Contents ==="
+          ls -la build/reports/allure-report/allureReport/
+          echo "=== History Contents ==="
+          ls -la build/reports/allure-report/allureReport/history/ || echo "No history found"
+          echo "=== Allure Results Contents ==="
+          ls -la build/allure-results/ || echo "No allure results found"
+
       # Дополнительно обновляем ветку gh-pages для истории
       - name: Update gh-pages branch for history
         if: always()
@@ -430,7 +476,7 @@ jobs:
           
           # Коммитим изменения
           git add .
-          git commit -m "Update Allure reports $(date) - Added SelenoidConnectionTest" || echo "No changes to commit"
+          git commit -m "Update Allure reports $(date) - Preserve history" || echo "No changes to commit"
           
           # Пушим изменения
-          git push origin gh-pages --force
+          git push origin gh-pages
