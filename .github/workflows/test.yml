@@ -29,8 +29,44 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       
-      # Настраиваем Selenoid (ваш проверенный подход)
-      - uses: Xotabu4/selenoid-github-action@v2
+      # Запускаем Selenoid через Docker
+      - name: Start Selenoid
+        run: |
+          # Создаем docker-compose.yml для Selenoid
+          cat > docker-compose.yml << 'EOF'
+          version: '3'
+          services:
+            selenoid:
+              image: aerokube/selenoid:latest-release
+              container_name: selenoid
+              ports:
+                - "4444:4444"
+              volumes:
+                - /var/run/docker.sock:/var/run/docker.sock
+              command: ["-limit", "2", "-browser", "chrome", "-browser", "firefox"]
+              environment:
+                - OVERRIDE_SELENOID_VERSION=1.10.7
+          
+            selenoid-ui:
+              image: aerokube/selenoid-ui:latest-release
+              container_name: selenoid-ui
+              ports:
+                - "8080:8080"
+              environment:
+                - SELENOID_URI=http://selenoid:4444
+              depends_on:
+                - selenoid
+          EOF
+          
+          # Запускаем Selenoid
+          docker-compose up -d
+          
+          # Ждем запуска
+          sleep 10
+          
+          # Проверяем статус
+          curl -s http://localhost:4444/status || echo "Selenoid not ready yet"
+          docker ps
       
       # запускаем тесты
       - name: Run tests
@@ -85,3 +121,10 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         if: always()
+      
+      # Очищаем Docker контейнеры
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose down || true
+          docker system prune -f || true
