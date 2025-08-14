@@ -42,24 +42,34 @@ jobs:
       # Запускаем Selenoid
       - name: Start Selenoid
         run: |
+          echo "Starting Selenoid..."
           curl -s https://aerokube.com/cm/bash | bash
           ./cm selenoid start --browsers "chrome" --last-versions 1 --port 4444
           sleep 10
+          echo "Checking Selenoid status..."
+          curl -s http://localhost:4444/status || echo "Selenoid not responding"
       
       # запускаем тесты
       - name: Run tests
         env:
           CI: true
         run: |
+          echo "Running tests..."
           ./gradlew clean test \
             -Dselenide.remote=http://localhost:4444/wd/hub \
             -Dselenide.browser=chrome \
             --continue --no-daemon
+          echo "Tests completed. Checking results..."
+          ls -la build/ || echo "No build directory"
+          ls -la build/allure-results/ || echo "No allure-results"
       
       # генерируем отчет Allure
       - name: Generate Allure Report
         run: |
+          echo "Generating Allure report..."
           ./gradlew allureReport
+          echo "Report generated. Checking output..."
+          ls -la build/reports/allure-report/ || echo "No allure-report directory"
       
       # Сохраняем отчеты как артефакт
       - name: Store Allure report
@@ -68,6 +78,19 @@ jobs:
           name: allure-report
           path: build/reports/allure-report
           retention-days: 1
+      
+      # Диагностика - что получилось
+      - name: Debug - Check what we have
+        run: |
+          echo "=== DEBUG INFO ==="
+          echo "Current directory: $(pwd)"
+          echo "Build directory contents:"
+          ls -la build/ || echo "No build directory"
+          echo "Allure results:"
+          ls -la build/allure-results/ || echo "No allure-results"
+          echo "Allure report:"
+          ls -la build/reports/allure-report/ || echo "No allure-report"
+          echo "=== END DEBUG ==="
       
       # Очищаем Selenoid
       - name: Cleanup
@@ -80,7 +103,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     name: Report publication
-    environment: github-pages
     
     steps:
       # Скачиваем отчеты
