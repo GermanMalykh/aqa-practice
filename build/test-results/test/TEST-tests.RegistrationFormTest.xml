@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Форма регистрации" tests="1" skipped="0" failures="1" errors="0" timestamp="2025-08-14T09:33:04" hostname="pkrvmsl9tci6h6u" time="8.595">
+  <properties/>
+  <testcase name="Заполнение формы регистрации с валидацией данных" classname="tests.RegistrationFormTest" time="8.595">
+    <failure message="org.openqa.selenium.SessionNotCreatedException: Could not start a new session. Response code 500. Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir &#10;Host info: host: 'pkrvmsl9tci6h6u', ip: '10.1.0.193'&#10;Build info: version: '4.34.0', revision: '707dcb4246*'&#10;System info: os.name: 'Linux', os.arch: 'amd64', os.version: '6.11.0-1018-azure', java.version: '21.0.8'&#10;Driver info: org.openqa.selenium.chrome.ChromeDriver&#10;Command: [null, newSession {capabilities=[Capabilities {acceptInsecureCerts: true, browserName: chrome, goog:chromeOptions: {args: [--proxy-bypass-list=&lt;-loopb..., --disable-dev-shm-usage, --disable-search-engine-cho..., --unsafely-disable-devtools..., --window-size=1366,768], binary: /usr/bin/google-chrome, excludeSwitches: [enable-automation, load-extension], extensions: [], prefs: {autofill.credit_card_enabled: false, autofill.profile_enabled: false, credentials_enable_service: false, download.default_directory: /home/runner/work/aqa-pract..., plugins.always_open_pdf_externally: true, profile.default_content_setting_values.automatic_downloads: 1, profile.password_manager_enabled: false, profile.password_manager_leak_detection: false, safebrowsing.enabled: true}}, pageLoadStrategy: eager, unhandledPromptBehavior: accept}]}]&#10;selenide.url: https://demoqa.com/automation-practice-form&#10;selenide.baseUrl: https://demoqa.com" type="org.openqa.selenium.SessionNotCreatedException">org.openqa.selenium.SessionNotCreatedException: Could not start a new session. Response code 500. Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir 
+Host info: host: 'pkrvmsl9tci6h6u', ip: '10.1.0.193'
+Build info: version: '4.34.0', revision: '707dcb4246*'
+System info: os.name: 'Linux', os.arch: 'amd64', os.version: '6.11.0-1018-azure', java.version: '21.0.8'
+Driver info: org.openqa.selenium.chrome.ChromeDriver
+Command: [null, newSession {capabilities=[Capabilities {acceptInsecureCerts: true, browserName: chrome, goog:chromeOptions: {args: [--proxy-bypass-list=&lt;-loopb..., --disable-dev-shm-usage, --disable-search-engine-cho..., --unsafely-disable-devtools..., --window-size=1366,768], binary: /usr/bin/google-chrome, excludeSwitches: [enable-automation, load-extension], extensions: [], prefs: {autofill.credit_card_enabled: false, autofill.profile_enabled: false, credentials_enable_service: false, download.default_directory: /home/runner/work/aqa-pract..., plugins.always_open_pdf_externally: true, profile.default_content_setting_values.automatic_downloads: 1, profile.password_manager_enabled: false, profile.password_manager_leak_detection: false, safebrowsing.enabled: true}}, pageLoadStrategy: eager, unhandledPromptBehavior: accept}]}]
+selenide.url: https://demoqa.com/automation-practice-form
+selenide.baseUrl: https://demoqa.com
+	at app//org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:114)
+	at app//org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:75)
+	at app//org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:61)
+	at app//org.openqa.selenium.remote.HttpCommandExecutor.execute(HttpCommandExecutor.java:187)
+	at app//org.openqa.selenium.remote.service.DriverCommandExecutor.invokeExecute(DriverCommandExecutor.java:216)
+	at app//org.openqa.selenium.remote.service.DriverCommandExecutor.execute(DriverCommandExecutor.java:174)
+	at app//org.openqa.selenium.remote.RemoteWebDriver.execute(RemoteWebDriver.java:544)
+	at app//org.openqa.selenium.remote.RemoteWebDriver.startSession(RemoteWebDriver.java:244)
+	at app//org.openqa.selenium.remote.RemoteWebDriver.&lt;init&gt;(RemoteWebDriver.java:173)
+	at app//org.openqa.selenium.chromium.ChromiumDriver.&lt;init&gt;(ChromiumDriver.java:110)
+	at app//org.openqa.selenium.chrome.ChromeDriver.&lt;init&gt;(ChromeDriver.java:88)
+	at app//org.openqa.selenium.chrome.ChromeDriver.&lt;init&gt;(ChromeDriver.java:83)
+	at app//com.codeborne.selenide.webdriver.ChromeDriverFactory.create(ChromeDriverFactory.java:28)
+	at app//com.codeborne.selenide.webdriver.WebDriverFactory.createWebDriverInstance(WebDriverFactory.java:105)
+	at app//com.codeborne.selenide.webdriver.WebDriverFactory.createWebDriver(WebDriverFactory.java:59)
+	at app//com.codeborne.selenide.drivercommands.CreateDriverCommand.lambda$createDriver$0(CreateDriverCommand.java:68)
+	at app//com.codeborne.selenide.logevents.SelenideLogger.wrap(SelenideLogger.java:128)
+	at app//com.codeborne.selenide.logevents.SelenideLogger.get(SelenideLogger.java:106)
+	at app//com.codeborne.selenide.drivercommands.CreateDriverCommand.createDriver(CreateDriverCommand.java:44)
+	at app//com.codeborne.selenide.WebDriverThreadLocalContainer.createDriver(WebDriverThreadLocalContainer.java:181)
+	at app//com.codeborne.selenide.WebDriverThreadLocalContainer.createDriver(WebDriverThreadLocalContainer.java:177)
+	at app//com.codeborne.selenide.WebDriverThreadLocalContainer.createAndRegisterDriver(WebDriverThreadLocalContainer.java:164)
+	at app//com.codeborne.selenide.WebDriverThreadLocalContainer.getAndCheckWebDriver(WebDriverThreadLocalContainer.java:130)
+	at app//com.codeborne.selenide.WebDriverRunner.getAndCheckWebDriver(WebDriverRunner.java:99)
+	at app//com.codeborne.selenide.StaticDriver.getAndCheckWebDriver(StaticDriver.java:41)
+	at app//com.codeborne.selenide.SelenideDriver.getAndCheckWebDriver(SelenideDriver.java:183)
+	at app//com.codeborne.selenide.drivercommands.Navigator.lambda$navigateTo$0(Navigator.java:67)
+	at app//com.codeborne.selenide.logevents.SelenideLogger.lambda$run$0(SelenideLogger.java:99)
+	at app//com.codeborne.selenide.logevents.SelenideLogger.wrap(SelenideLogger.java:128)
+	at app//com.codeborne.selenide.logevents.SelenideLogger.run(SelenideLogger.java:98)
+	at app//com.codeborne.selenide.drivercommands.Navigator.navigateTo(Navigator.java:65)
+	at app//com.codeborne.selenide.drivercommands.Navigator.open(Navigator.java:29)
+	at app//com.codeborne.selenide.SelenideDriver.open(SelenideDriver.java:86)
+	at app//com.codeborne.selenide.Selenide.open(Selenide.java:50)
+	at app//pages.RegistrationFormPage.open(RegistrationFormPage.java:39)
+	at app//tests.RegistrationFormTest.fillingPracticeForm(RegistrationFormTest.java:26)
+	at java.base@21.0.8/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.8/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.8/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[[Test worker] INFO com.codeborne.selenide.WebDriverThreadLocalContainer - No webdriver is bound to current thread: 1 - let's create a new webdriver
+[Test worker] WARN utils.Attach - WebDriver не запущен, невозможно получить исходный код страницы
+[Test worker] WARN utils.Attach - WebDriver не запущен, невозможно получить HTML страницы
+[Test worker] WARN utils.Attach - WebDriver не запущен, невозможно сделать скриншот: Last screenshot
+[Test worker] WARN utils.Attach - WebDriver не запущен, невозможно получить логи браузера
+]]></system-err>
+</testsuite>
