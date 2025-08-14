@@ -29,44 +29,19 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       
-      # Запускаем Selenoid через Docker
+      # Запускаем Selenoid напрямую
       - name: Start Selenoid
         run: |
-          # Создаем docker-compose.yml для Selenoid
-          cat > docker-compose.yml << 'EOF'
-          version: '3'
-          services:
-            selenoid:
-              image: aerokube/selenoid:latest-release
-              container_name: selenoid
-              ports:
-                - "4444:4444"
-              volumes:
-                - /var/run/docker.sock:/var/run/docker.sock
-              command: ["-limit", "2", "-browser", "chrome", "-browser", "firefox"]
-              environment:
-                - OVERRIDE_SELENOID_VERSION=1.10.7
-          
-            selenoid-ui:
-              image: aerokube/selenoid-ui:latest-release
-              container_name: selenoid-ui
-              ports:
-                - "8080:8080"
-              environment:
-                - SELENOID_URI=http://selenoid:4444
-              depends_on:
-                - selenoid
-          EOF
-          
-          # Запускаем Selenoid
-          docker-compose up -d
+          # Скачиваем и запускаем Selenoid
+          curl -s https://aerokube.com/cm/bash | bash
+          ./cm selenoid start --browsers 'chrome' --last-versions 1 --args "-limit 2"
           
           # Ждем запуска
           sleep 10
           
           # Проверяем статус
           curl -s http://localhost:4444/status || echo "Selenoid not ready yet"
-          docker ps
+          ps aux | grep selenoid || echo "Selenoid process not found"
       
       # запускаем тесты
       - name: Run tests
@@ -87,34 +62,17 @@ jobs:
           echo "=== Allure Report Directory ==="
           ls -la build/reports/allure-report/ || echo "No Allure report"
       
-      # скачиваем историю тестов (gh-pages ветку)
-      - uses: actions/checkout@v4
-        if: always()
-        continue-on-error: true
-        with:
-          ref: gh-pages
-          path: gh-pages
-      
-      # генерируем отчет с историей
-      - uses: simple-elf/allure-report-action@master
-        if: always()
-        with:
-          gh_pages: gh-pages
-          allure_results: build/allure-results
-          allure_report: allure-report
-          allure_history: allure-history
-      
       # настраиваем GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
         if: always()
       
       # загружаем артефакт для GitHub Pages
-      - name: Upload Pages Artifact
+      - name: Deploy to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         if: always()
         with:
-          path: './gh-pages/allure-history'
+          path: './build/reports/allure-report'
       
       # публикуем отчет на GitHub Pages
       - name: Deploy to GitHub Pages
@@ -122,9 +80,9 @@ jobs:
         uses: actions/deploy-pages@v4
         if: always()
       
-      # Очищаем Docker контейнеры
+      # Очищаем Selenoid
       - name: Cleanup
         if: always()
         run: |
-          docker-compose down || true
-          docker system prune -f || true
+          ./cm selenoid stop || true
+          pkill -f selenoid || true
