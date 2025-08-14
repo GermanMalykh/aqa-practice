@@ -130,3 +130,13 @@ jobs:
       # Публикуем отчет на GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
+      
+      # Диагностика развертывания
+      - name: Debug deployment
+        run: |
+          echo "=== DEPLOYMENT DEBUG ==="
+          echo "Current directory: $(pwd)"
+          echo "Allure report contents:"
+          ls -la allure-report/ || echo "No allure-report directory"
+          echo "GitHub Pages environment: ${{ env.GITHUB_PAGES }}"
+          echo "=== END DEPLOYMENT DEBUG ==="
